@@ -144,8 +144,9 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 					// write to output when output row matches banner row
 					if rowOut == rowBanner && r != '\n' {
 						out += string(r)
-						// write down where the spaces are for later justification
-						if isSpace && i == 0 {
+						// write down where the spaces are on the horizontal output
+						// for later justification
+						if isSpace {
 							spaceIndexes = append(spaceIndexes, len(out))
 							isSpace = false
 						}
@@ -180,22 +181,34 @@ func justifyAsciis(s string, w int) string {
 	nuRows := []string{}
 
 	for ir, row := range rows {
-		adds := ""
-
-		// put all additional spaces in one string
-		for i := 0; i < w-len(row); i++ {
-			adds += " "
-		}
 
 		// cut the spacestring to a necessary number of pieces
-		if ir == 0 {
-			for i := range spaceIndexes {
-				if i < len(spaceIndexes)-1 {
-					cut := len(adds) / len(spaceIndexes)
+		if ir%8 == 0 {
+			adds := ""
+
+			// put all additional spaces in one string
+			for i := 0; i < w-len(row); i++ {
+				adds += " "
+			}
+
+			//fmt.Println("row, adds, row+adds:", len(row), len(adds), len(row)+len(adds), "w, len spaces, len spaceindexes:", w, len(spaces[0]), len(spaceIndexes))
+
+			onThisRow := 0
+
+			for _, v := range spaceIndexes {
+				if v >= (ir)*len(row) && v < ((ir)+1)*len(row) {
+					onThisRow++
+				}
+				//fmt.Println(v, ir, onThisRow, ir*len(row))
+			}
+
+			for i := 0; i < onThisRow; i++ {
+				if i < onThisRow-1 {
+					cut := len(adds) / onThisRow
 					spaces[i] = adds[:cut+1]
 					adds = adds[cut+1:]
 				} else {
-					spaces[i] += adds
+					spaces[i] = adds
 				}
 			}
 		}
@@ -204,8 +217,12 @@ func justifyAsciis(s string, w int) string {
 		for i, v := range spaceIndexes {
 			// don't add spaces to empty line
 			if len(row) > 1 {
-				row = row[:v+diff] + spaces[i] + row[v+diff:]
-				diff += len(spaces[i])
+				if v >= (ir/8)*len(row) && v < ((ir/8)+1)*len(row) {
+					//fmt.Println("diff:", diff, "v:", v, "spaces i:", len(spaces[i]))
+					row = row[:v+diff] + spaces[i] + row[v+diff:]
+					diff += len(spaces[i])
+				}
+
 			}
 		}
 		nuRows = append(nuRows, row)
@@ -256,10 +273,10 @@ func alignLCR(s, a string, w int) string {
 // main prints the input string as banners in the selected ascii art style,
 // including line changes.
 func main() {
-	align := flag.String("align", "left", "specify alignment (left, center, right or justify)")
+	align := flag.String("align", "", "specify alignment (left, center, right or justify)")
 	flag.Parse()
 
-	if *align != "left" && *align != "center" && *align != "right" && *align != "justify" {
+	if *align != "left" && *align != "center" && *align != "right" && *align != "justify" && *align != "" {
 		fmt.Println("Usage: go run . [OPTION] [STRING] [BANNER]\n\nExample: go run . --align=right something standard")
 		os.Exit(1)
 	}
@@ -278,7 +295,7 @@ func main() {
 
 	// Check if a second argument (style) is provided
 	if len(args) == 2 {
-		style = args[0]
+		style = args[1]
 	}
 
 	if len(args) > 2 {
