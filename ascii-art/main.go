@@ -136,7 +136,7 @@ func main() {
 	args := os.Args[1:]
 
 	if len(args) < 1 {
-		fmt.Println("Provide at least a string argument")
+		fmt.Println("Provide at least one string argument")
 		printUsage()
 		os.Exit(1)
 	}
@@ -150,7 +150,7 @@ func main() {
 	}
 
 	if len(args) > 2 {
-		fmt.Println("to many arguments")
+		fmt.Println("too many arguments")
 		printUsage()
 		os.Exit(1)
 	}
