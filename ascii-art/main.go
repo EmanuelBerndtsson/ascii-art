@@ -1,9 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 )
 
 // printUsage() prints instructions on how to use the program
@@ -118,6 +122,7 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 						rowBanner++
 					}
 
+					// write to output when output row matches banner row
 					if rowOut == rowBanner && r != '\n' {
 						out += string(r)
 					}
@@ -130,10 +135,73 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 	return
 }
 
+// getTermWidth returns the width of the terminal in characters
+func getTermWidth() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	outSplit := strings.Split(string(out), " ")
+	width, _ := strconv.Atoi(outSplit[1][:len(outSplit[1])-1])
+	return width
+}
+
+// justifyLCR justifies the output text left, center or right, and
+// cuts off the part that doesn't fit the screen
+func justifyLCR(s, a string, w int) string {
+	rows := strings.Split(s, "\n")
+	nuRows := []string{}
+
+	for _, row := range rows {
+		add0 := ""
+		add1 := ""
+
+		if a == "left" {
+			for i := 0; i < w-len(row); i++ {
+				add0 += " "
+			}
+			row = row + add0
+		}
+
+		if a == "center" {
+			for i := 0; i < (w-len(row))/2; i++ {
+				add0 += " "
+				add1 += " "
+			}
+			if (w-len(row))%2 != 0 {
+				add1 += " "
+			}
+			row = add0 + row + add1
+		}
+
+		if a == "right" {
+			for i := 0; i < w-len(row); i++ {
+				add0 += " "
+			}
+			row = add0 + row
+		}
+
+		nuRows = append(nuRows, row)
+	}
+	return strings.Join(nuRows, "\n")
+}
+
 // main prints the input string as banners in the selected ascii art style,
 // including line changes.
 func main() {
-	args := os.Args[1:]
+	align := flag.String("align", "left", "specify alignment (left, center, right or justify)")
+	flag.Parse()
+
+	if *align != "left" && *align != "center" && *align != "right" && *align != "justify" {
+		fmt.Println("Usage: go run . [OPTION] [STRING] [BANNER]\n\nExample: go run . --align=right something standard")
+		os.Exit(1)
+	}
+
+	//args := os.Args[1:]
+	args := flag.Args()
 
 	if len(args) < 1 {
 		fmt.Println("Provide at least one string argument")
@@ -146,7 +214,7 @@ func main() {
 
 	// Check if a second argument (style) is provided
 	if len(args) == 2 {
-		style = args[1]
+		style = args[0]
 	}
 
 	if len(args) > 2 {
@@ -155,12 +223,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	terminalWidth := getTermWidth()
+	fmt.Println(terminalWidth)
+
 	// get the art style as banners
 	stylesAsBanners := getStyleBanners(style)
 
 	// get the lines in input as a slices of banners
 	bannerLines := putInputToBanners(input, stylesAsBanners)
 
-	// place banners to horizontal lines and print the result
-	fmt.Print(getHorizontalLines(bannerLines))
+	// place banners to horizontal lines
+	horizontal := getHorizontalLines(bannerLines)
+
+	horizontal = justifyLCR(horizontal, *align, terminalWidth)
+
+	// print the result
+	fmt.Print(horizontal)
 }
