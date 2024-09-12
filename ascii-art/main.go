@@ -10,7 +10,9 @@ import (
 	"strings"
 )
 
-var spaceIndexes []int
+type spaceIndex [2]int
+
+var spaceIndexes []spaceIndex
 
 // printUsage() prints instructions on how to use the program
 func printUsage() {
@@ -123,12 +125,14 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 	// all space banners are the same
 	space := "      \n      \n      \n      \n      \n      \n      \n      "
 	isSpace := false
-	for _, line := range bannerLines {
+	thisRow := 0
+	for h, line := range bannerLines {
 		rowOut := 0
 		if len(line) == 0 {
 			out += "\n"
 			continue
 		}
+
 		for i := 0; i < 8; i++ {
 			for _, ban := range line {
 				if i == 0 && ban == space {
@@ -144,10 +148,11 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 					// write to output when output row matches banner row
 					if rowOut == rowBanner && r != '\n' {
 						out += string(r)
+						thisRow++
 						// write down where the spaces are on the horizontal output
 						// for later justification
 						if isSpace {
-							spaceIndexes = append(spaceIndexes, len(out))
+							spaceIndexes = append(spaceIndexes, [2]int{thisRow, h})
 							isSpace = false
 						}
 					}
@@ -155,6 +160,7 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 			}
 			out += "\n"
 			rowOut++
+			thisRow = 0
 		}
 	}
 	return
@@ -179,27 +185,28 @@ func justifyAsciis(s string, w int) string {
 	spaces := make([]string, len(spaceIndexes))
 	rows := strings.Split(s, "\n")
 	nuRows := []string{}
+	useTheseSIs := []int{}
 
 	for ir, row := range rows {
 
 		// cut the spacestring to a necessary number of pieces
 		if ir%8 == 0 {
 			adds := ""
+			useTheseSIs = []int{}
 
 			// put all additional spaces in one string
 			for i := 0; i < w-len(row); i++ {
 				adds += " "
 			}
 
-			//fmt.Println("row, adds, row+adds:", len(row), len(adds), len(row)+len(adds), "w, len spaces, len spaceindexes:", w, len(spaces[0]), len(spaceIndexes))
-
 			onThisRow := 0
 
-			for _, v := range spaceIndexes {
-				if v >= (ir)*len(row) && v < ((ir)+1)*len(row) {
+			for i, si := range spaceIndexes {
+				// if (big) row value x8 is equal to current (small) row
+				if ir == si[1]*8 {
 					onThisRow++
+					useTheseSIs = append(useTheseSIs, i)
 				}
-				//fmt.Println(v, ir, onThisRow, ir*len(row))
 			}
 
 			for i := 0; i < onThisRow; i++ {
@@ -214,17 +221,12 @@ func justifyAsciis(s string, w int) string {
 		}
 
 		diff := 0
-		for i, v := range spaceIndexes {
-			// don't add spaces to empty line
-			if len(row) > 1 {
-				if v >= (ir/8)*len(row) && v < ((ir/8)+1)*len(row) {
-					//fmt.Println("diff:", diff, "v:", v, "spaces i:", len(spaces[i]))
-					row = row[:v+diff] + spaces[i] + row[v+diff:]
-					diff += len(spaces[i])
-				}
 
-			}
+		for i, v := range useTheseSIs {
+			row = row[:spaceIndexes[v][0]+diff] + spaces[i] + row[spaceIndexes[v][0]+diff:]
+			diff += len(spaces[v])
 		}
+
 		nuRows = append(nuRows, row)
 	}
 	return strings.Join(nuRows, "\n")
