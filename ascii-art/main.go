@@ -10,14 +10,24 @@ import (
 	"strings"
 )
 
+var spaceIndexes []int
+
 // printUsage() prints instructions on how to use the program
 func printUsage() {
 	fmt.Println()
 	fmt.Println("Usage:")
 	fmt.Println(`./ascii-art "Hello!" [stylefile]`)
-	fmt.Println("Example:")
+	fmt.Println("OR")
+	fmt.Println(`./ascii-art "Hello!" [stylefile]`)
+	fmt.Println("OR")
+	fmt.Println(`./ascii-art "Hello!" [stylefile]`)
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println(`go run . "Hello!"`)
 	fmt.Println(`go run . "Hello!" thinkertoy`)
-	fmt.Println("If no style is provided, it defaults to 'standard'.")
+	fmt.Println(`go run . --align==center "Hello!" thinkertoy`)
+	fmt.Println()
+	fmt.Println("If no input is provided, style defaults to 'standard' and align to 'left'.")
 }
 
 // getStyleFile opens and reads the ascii art file based on the provided style argument
@@ -95,6 +105,8 @@ func putInputToBanners(input string, banners []string) [][]string {
 
 			bannerLines[lineIndex] = append(bannerLines[lineIndex], banners[ru-32])
 
+			// Audit answers demand spaces of width 6, unlike exercise examples where
+			// they show a width of 4! So removed this:
 			/* 			if ru != ' ' {
 			   				bannerLines[lineIndex] = append(bannerLines[lineIndex], banners[ru-32])
 			   			} else {
@@ -108,6 +120,9 @@ func putInputToBanners(input string, banners []string) [][]string {
 
 // getHorizontalLines composes horizontal lines from slices of banners
 func getHorizontalLines(bannerLines [][]string) (out string) {
+	// all space banners are the same
+	space := "      \n      \n      \n      \n      \n      \n      \n      "
+	isSpace := false
 	for _, line := range bannerLines {
 		rowOut := 0
 		if len(line) == 0 {
@@ -116,6 +131,10 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 		}
 		for i := 0; i < 8; i++ {
 			for _, ban := range line {
+				if i == 0 && ban == space {
+					isSpace = true
+				}
+
 				rowBanner := 0
 				for _, r := range ban {
 					if r == '\n' {
@@ -125,6 +144,11 @@ func getHorizontalLines(bannerLines [][]string) (out string) {
 					// write to output when output row matches banner row
 					if rowOut == rowBanner && r != '\n' {
 						out += string(r)
+						// write down where the spaces are for later justification
+						if isSpace && i == 0 {
+							spaceIndexes = append(spaceIndexes, len(out))
+							isSpace = false
+						}
 					}
 				}
 			}
@@ -149,9 +173,49 @@ func getTermWidth() int {
 	return width
 }
 
-// justifyLCR justifies the output text left, center or right, and
+// justifyAsciis spreads the words from one side to the other
+func justifyAsciis(s string, w int) string {
+	spaces := make([]string, len(spaceIndexes))
+	rows := strings.Split(s, "\n")
+	nuRows := []string{}
+
+	for ir, row := range rows {
+		adds := ""
+
+		// put all additional spaces in one string
+		for i := 0; i < w-len(row); i++ {
+			adds += " "
+		}
+
+		// cut the spacestring to a necessary number of pieces
+		if ir == 0 {
+			for i := range spaceIndexes {
+				if i < len(spaceIndexes)-1 {
+					cut := len(adds) / len(spaceIndexes)
+					spaces[i] = adds[:cut+1]
+					adds = adds[cut+1:]
+				} else {
+					spaces[i] += adds
+				}
+			}
+		}
+
+		diff := 0
+		for i, v := range spaceIndexes {
+			// don't add spaces to empty line
+			if len(row) > 1 {
+				row = row[:v+diff] + spaces[i] + row[v+diff:]
+				diff += len(spaces[i])
+			}
+		}
+		nuRows = append(nuRows, row)
+	}
+	return strings.Join(nuRows, "\n")
+}
+
+// alignLCR justifies the output text left, center or right, and
 // cuts off the part that doesn't fit the screen
-func justifyLCR(s, a string, w int) string {
+func alignLCR(s, a string, w int) string {
 	rows := strings.Split(s, "\n")
 	nuRows := []string{}
 
@@ -224,7 +288,6 @@ func main() {
 	}
 
 	terminalWidth := getTermWidth()
-	fmt.Println(terminalWidth)
 
 	// get the art style as banners
 	stylesAsBanners := getStyleBanners(style)
@@ -235,7 +298,13 @@ func main() {
 	// place banners to horizontal lines
 	horizontal := getHorizontalLines(bannerLines)
 
-	horizontal = justifyLCR(horizontal, *align, terminalWidth)
+	// justify when asked for
+	if *align == "justify" {
+		horizontal = justifyAsciis(horizontal, terminalWidth)
+	}
+
+	// align the text left, center or right
+	horizontal = alignLCR(horizontal, *align, terminalWidth)
 
 	// print the result
 	fmt.Print(horizontal)
