@@ -89,12 +89,14 @@ func putInputToBanners(input string, banners []string) [][]string {
 				bannerLines = append(bannerLines, []string{})
 			}
 
-			if ru != ' ' {
-				bannerLines[lineIndex] = append(bannerLines[lineIndex], banners[ru-32])
-			} else {
-				// requested spaces are thinner than in styles
-				bannerLines[lineIndex] = append(bannerLines[lineIndex], "    \n    \n    \n    \n    \n    \n    \n    \n")
-			}
+			bannerLines[lineIndex] = append(bannerLines[lineIndex], banners[ru-32])
+
+			/* 			if ru != ' ' {
+			   				bannerLines[lineIndex] = append(bannerLines[lineIndex], banners[ru-32])
+			   			} else {
+			   				// requested spaces are thinner than in styles
+			   				bannerLines[lineIndex] = append(bannerLines[lineIndex], "    \n    \n    \n    \n    \n    \n    \n    \n")
+			   			} */
 		}
 	}
 	return bannerLines
